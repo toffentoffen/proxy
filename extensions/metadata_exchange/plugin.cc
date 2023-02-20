@@ -162,6 +162,7 @@ bool PluginRootContext::updatePeer(std::string_view key,
 }
 
 FilterHeadersStatus PluginContext::onRequestHeaders(uint32_t, bool) {
+  LOG_DEBUG("onRequestHeaders");
   // strip and store downstream peer metadata
   auto downstream_metadata_id = getRequestHeader(ExchangeMetadataHeaderId);
   if (downstream_metadata_id != nullptr &&
@@ -169,8 +170,10 @@ FilterHeadersStatus PluginContext::onRequestHeaders(uint32_t, bool) {
     removeRequestHeader(ExchangeMetadataHeaderId);
     setFilterState(::Wasm::Common::kDownstreamMetadataIdKey,
                    downstream_metadata_id->view());
+    LOG_DEBUG("onRequestHeaders downstreamMetadataId set");
   } else {
     metadata_id_received_ = false;
+    LOG_DEBUG("onRequestHeaders no exchangeMetadataHeaderId");
   }
 
   auto downstream_metadata_value = getRequestHeader(ExchangeMetadataHeader);
@@ -182,13 +185,18 @@ FilterHeadersStatus PluginContext::onRequestHeaders(uint32_t, bool) {
                                    downstream_metadata_value->view())) {
       LOG_DEBUG("cannot set downstream peer node");
     }
+    LOG_DEBUG("onRequestHeaders downstreamMetadata set");
   } else {
     metadata_received_ = false;
+    LOG_DEBUG("onRequestHeaders no exchangeMetadataHeaders");
   }
+  
+  LOG_DEBUG(absl::StrCat("onRequestHeaders direction: ", std::to_string(static_cast<int64_t>(direction_))));
 
   // do not send request internal headers to sidecar app if it is an inbound
   // proxy
   if (direction_ != ::Wasm::Common::TrafficDirection::Inbound) {
+    LOG_DEBUG("onRequestHeaders direction is not Inbound.");
     auto metadata = metadataValue();
     // insert peer metadata struct for upstream
     if (!metadata.empty()) {
@@ -199,12 +207,15 @@ FilterHeadersStatus PluginContext::onRequestHeaders(uint32_t, bool) {
     if (!nodeid.empty()) {
       replaceRequestHeader(ExchangeMetadataHeaderId, nodeid);
     }
+  } else {
+    LOG_DEBUG("onRequestHeaders direction Inbound.");
   }
 
   return FilterHeadersStatus::Continue;
 }
 
 FilterHeadersStatus PluginContext::onResponseHeaders(uint32_t, bool) {
+  LOG_DEBUG("onResponseHeaders"); 
   // strip and store upstream peer metadata
   auto upstream_metadata_id = getResponseHeader(ExchangeMetadataHeaderId);
   if (upstream_metadata_id != nullptr &&
@@ -212,6 +223,9 @@ FilterHeadersStatus PluginContext::onResponseHeaders(uint32_t, bool) {
     removeResponseHeader(ExchangeMetadataHeaderId);
     setFilterState(::Wasm::Common::kUpstreamMetadataIdKey,
                    upstream_metadata_id->view());
+    LOG_DEBUG("onResponseHeader upsteramMetadataId set");
+  } else {
+    LOG_DEBUG("onResponseHeaders no upstream exchangeMetadataHeaderId"); 
   }
 
   auto upstream_metadata_value = getResponseHeader(ExchangeMetadataHeader);
@@ -223,11 +237,17 @@ FilterHeadersStatus PluginContext::onResponseHeaders(uint32_t, bool) {
                                    upstream_metadata_value->view())) {
       LOG_DEBUG("cannot set upstream peer node");
     }
+    LOG_DEBUG("onResponseHeaders upstreamMetadata set");
+  } else {
+    LOG_DEBUG("onResponseHeaders no upstream exchangeMetadataHeader"); 
   }
 
+  LOG_DEBUG(absl::StrCat("onResponseHeaders direction: ", std::to_string(static_cast<int64_t>(direction_))));
+  
   // do not send response internal headers to sidecar app if it is an outbound
   // proxy
-  if (direction_ != ::Wasm::Common::TrafficDirection::Outbound) {
+  if (direction_ != ::Wasm::Common::TrafficDirection::Outbound || metadata_received_ ) {
+    LOG_DEBUG("onResponseHeaders direction is not Outbound");
     auto metadata = metadataValue();
     // insert peer metadata struct for downstream
     if (!metadata.empty() && metadata_received_) {
@@ -238,6 +258,8 @@ FilterHeadersStatus PluginContext::onResponseHeaders(uint32_t, bool) {
     if (!nodeid.empty() && metadata_id_received_) {
       replaceResponseHeader(ExchangeMetadataHeaderId, nodeid);
     }
+  } else {
+    LOG_DEBUG("onResponseHeaders direction Outbound"); 
   }
 
   return FilterHeadersStatus::Continue;
