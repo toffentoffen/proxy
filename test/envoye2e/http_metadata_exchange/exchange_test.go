@@ -18,6 +18,7 @@ import (
 	"encoding/base64"
 	"testing"
 	"time"
+	"fmt"
 
 	pstruct "github.com/golang/protobuf/ptypes/struct"
 	"google.golang.org/protobuf/proto"
@@ -45,11 +46,57 @@ func TestHTTPExchange(t *testing.T) {
 	params.Vars["ServerMetadata"] = params.LoadTestData("testdata/server_node_metadata.json.tmpl")
 	params.Vars["ServerHTTPFilters"] = params.LoadTestData("testdata/filters/mx_inbound.yaml.tmpl")
 	params.Vars["ClientHTTPFilters"] = params.LoadTestData("testdata/filters/mx_outbound.yaml.tmpl")
+	t.Log("start scenario\n")
+	fmt.Println("test scenario")
+	/*
 	if err := (&driver.Scenario{
 		Steps: []driver.Step{
 			&driver.XDS{},
 			&driver.Update{Node: "server", Version: "0", Listeners: []string{driver.LoadTestData("testdata/listener/server.yaml.tmpl")}},
 			&driver.Envoy{Bootstrap: params.LoadTestData("testdata/bootstrap/server.yaml.tmpl")},
+			&driver.Sleep{Duration: 1 * time.Second},
+			&driver.HTTPCall{
+				Port: params.Ports.ServerPort,
+				Body: "hello, world!",
+				ResponseHeaders: map[string]string{
+					"x-envoy-peer-metadata-id": driver.None,
+					"x-envoy-peer-metadata":    driver.None,
+				},
+			},
+			&driver.HTTPCall{
+				Port: params.Ports.ServerPort,
+				Body: "hello, world!",
+				RequestHeaders: map[string]string{
+					"x-envoy-peer-metadata-id": "client",
+				},
+				ResponseHeaders: map[string]string{
+					"x-envoy-peer-metadata-id": "server",
+					"x-envoy-peer-metadata":    driver.None,
+				},
+			},
+			&driver.HTTPCall{
+				Port: params.Ports.ServerPort,
+				Body: "hello, world!",
+				RequestHeaders: map[string]string{
+					"x-envoy-peer-metadata-id": "client",
+					"x-envoy-peer-metadata":    EncodeMetadata(t, params),
+				},
+				ResponseHeaders: map[string]string{
+					"x-envoy-peer-metadata-id": "server",
+					"x-envoy-peer-metadata":    driver.Any,
+				},
+			},
+		},
+	}).Run(params); err != nil {
+		t.Fatal(err)
+	}
+	*/
+	// Configure an outbound server
+	if err := (&driver.Scenario{
+		Steps: []driver.Step{
+			&driver.XDS{},
+			&driver.Update{Node: "server", Version: "0", Listeners: []string{driver.LoadTestData("testdata/listener/client.yaml.tmpl")}},
+			&driver.Envoy{Bootstrap: params.LoadTestData("testdata/bootstrap/client.yaml.tmpl")},
 			&driver.Sleep{Duration: 1 * time.Second},
 			&driver.HTTPCall{
 				Port: params.Ports.ServerPort,

@@ -246,7 +246,7 @@ FilterHeadersStatus PluginContext::onResponseHeaders(uint32_t, bool) {
   
   // do not send response internal headers to sidecar app if it is an outbound
   // proxy
-  if (direction_ != ::Wasm::Common::TrafficDirection::Outbound || metadata_received_ ) {
+  if (direction_ != ::Wasm::Common::TrafficDirection::Outbound || metadata_received_ || metadata_id_received_ ) {
     LOG_DEBUG("onResponseHeaders direction is not Outbound");
     auto metadata = metadataValue();
     // insert peer metadata struct for downstream
